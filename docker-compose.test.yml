@@ -1,0 +1,35 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.test # Mappage du port AdonisJS
+    volumes:
+      - .:/app # Permet le rechargement en direct lors du développement
+      - /app/node_modules
+    environment:
+      NODE_ENV: test
+      HOST: 0.0.0.0
+    command: >
+      sh -c "
+        node ace migration:run &&
+        node ace db:seed &&
+        node ace test --watch
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.0
+    restart: always
+    env_file:
+      - .env.test
+    healthcheck:
+      test:
+        ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p${MYSQL_ROOT_PASSWORD}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
