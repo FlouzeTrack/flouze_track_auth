@@ -14,9 +14,14 @@ services:
       NODE_ENV: development
       HOST: 0.0.0.0
       PORT: 4010
-    command: ['node', 'ace', 'serve', '--watch']
+    command: >
+      sh -c "
+        node ace migration:run &&
+        node ace serve --watch
+      "
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: mysql:8.0
@@ -27,6 +32,13 @@ services:
       - '3080:3306'
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p${MYSQL_ROOT_PASSWORD}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   mysql_data:
