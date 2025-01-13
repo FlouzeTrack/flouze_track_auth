@@ -5,5 +5,5 @@ export default class Role extends BaseModel {
   declare id: number
 
   @column()
-  declare fullName: string | null
+  declare name: string
 }
