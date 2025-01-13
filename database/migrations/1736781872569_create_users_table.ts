@@ -8,13 +8,7 @@ export default class extends BaseSchema {
       table.uuid('id').primary().defaultTo(this.db.raw('uuid_generate_v4()'))
       table.string('email', 254).notNullable().unique()
       table.string('password').notNullable()
-      table
-        .integer('role_id')
-        .notNullable()
-        .unsigned()
-        .references('id')
-        .inTable('roles')
-        .onDelete('CASCADE')
+      table.integer('role_id').notNullable().unsigned().references('id').inTable('roles')
     })
   }
 
