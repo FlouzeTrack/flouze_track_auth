@@ -1,0 +1,17 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '4010:4010'
+    env_file:
+      - .env # Mappage du port AdonisJS
+    volumes:
+      - .:/app # Permet le rechargement en direct lors du développement
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 4010
+    command: ['node', 'ace', 'serve', '--watch']
