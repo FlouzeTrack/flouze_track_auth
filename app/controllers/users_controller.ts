@@ -2,39 +2,45 @@ import { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
 import Role from '#models/role'
 import hash from '@adonisjs/core/services/hash'
+import { JwtGuard } from '../auth/guards/jwt.js'
 
 export default class UsersController {
-  public async signup({ request, response }: HttpContext) {
-    const { email, password, roleId } = request.all()
-
-    // Vérifier si le rôle existe
-    const role = await Role.find(roleId)
-    if (!role) {
-      return response.status(400).send({ error: 'Role not found' })
-    }
-
-    // Vérifier si l'email est déjà utilisé
-    const existingUser = await User.query().where('email', email).first()
-    if (existingUser) {
-      return response.status(400).send({ error: 'Email already in use' })
-    }
-
-    const user = await User.create({
-      email,
-      password: password,
-      role_id: roleId,
-    })
-
-    return response.status(201).send(user)
+  public async signup({ request, response, auth }: HttpContext) {
+    const { email, password, role_id } = request.all()
+    
+      // Vérifier si le rôle existe
+      const role = await Role.find(role_id)
+      if (!role) {
+        return response.status(400).send({ error: 'Role not found' })
+      }
+    
+      // Vérifier si l'email est déjà utilisé
+      const existingUser = await User.query().where('email', email).first()
+      if (existingUser) {
+        return response.status(400).send({ error: 'Email already in use' })
+      }
+    
+      // Créer un nouvel utilisateur avec un mot de passe hashé
+      const user = new User()
+      user.email = email
+      user.password = password// Hash du mot de passe
+      user.role_id = role_id
+    
+      await user.save()
+    
+      // Typage explicite du retour de auth.use('jwt')
+      const jwtGuard = auth.use('jwt') as JwtGuard<any>
+    
+      // Générez un JWT pour l'utilisateur après l'inscription
+      return response.status(201).send(await jwtGuard.generate(user))
   }
 
   // Connexion de l'utilisateur
-  public async signin({ request, response }: HttpContext) {
+  public async signin({ request, response, auth }: HttpContext) {
     const { email, password } = request.all()
 
     // Vérifier si l'utilisateur existe
     const user = await User.query().where('email', email).first()
-
     if (!user) {
       return response.status(404).send({ error: 'User not found' })
     }
@@ -46,18 +52,22 @@ export default class UsersController {
       return response.status(401).send({ error: 'Invalid credentials' })
     }
 
-    return response.status(200).send({ message: 'Signed in successfully' })
+    // Typage explicite du retour de auth.use('jwt')
+    const jwtGuard = auth.use('jwt') as JwtGuard<any>
+
+    // Générez un JWT pour l'utilisateur après la connexion
+    return response.status(200).send(await jwtGuard.generate(user))
   }
 
   // Récupérer les informations de l'utilisateur connecté
   public async me({ auth, response }: HttpContext) {
-    const user = auth.user
+    /* const user = auth.user
     if (!user) {
       return response.status(401).send({ error: 'Unauthorized' })
     }
 
-    await user.load('role')
-    return response.status(200).send(user)
+    await user.load('role') */
+    return response.status(200).send("ok")
   }
 
   // Oublier le mot de passe (exemple, à adapter)
