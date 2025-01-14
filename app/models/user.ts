@@ -7,7 +7,6 @@ import Role from './role.js'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import { v4 as uuidv4 } from 'uuid'
 
-
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
   passwordColumnName: 'password',
