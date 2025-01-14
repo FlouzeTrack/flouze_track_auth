@@ -129,7 +129,7 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
       return this.getUserOrFail()
     }
     this.authenticationAttempted = true
-
+  
     /**
      * Ensure the auth header exists
      */
@@ -139,7 +139,7 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
         guardDriverName: this.driverName,
       })
     }
-
+  
     /**
      * Split the header value and read the token from it
      */
@@ -149,30 +149,42 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
         guardDriverName: this.driverName,
       })
     }
-
+  
     /**
      * Verify token
      */
-    const payload = jwt.verify(token, this.#options.secret)
-    if (typeof payload !== 'object' || !('userId' in payload)) {
+    try {
+      const payload = jwt.verify(token, this.#options.secret)
+      if (typeof payload !== 'object' || !('userId' in payload)) {
+        throw new errors.E_UNAUTHORIZED_ACCESS('Unauthorized access', {
+          guardDriverName: this.driverName,
+        })
+      }
+  
+      /**
+       * Fetch the user by user ID and save a reference to it
+       */
+      const providerUser = await this.#userProvider.findById(payload.userId)
+      if (!providerUser) {
+        throw new errors.E_UNAUTHORIZED_ACCESS('Unauthorized access', {
+          guardDriverName: this.driverName,
+        })
+      }
+  
+      this.user = providerUser.getOriginal()
+      return this.getUserOrFail()
+    } catch (err) {
+      if (err.name === 'TokenExpiredError') {
+        throw new errors.E_UNAUTHORIZED_ACCESS('Token has expired', {
+          guardDriverName: this.driverName,
+        })
+      }
       throw new errors.E_UNAUTHORIZED_ACCESS('Unauthorized access', {
         guardDriverName: this.driverName,
       })
     }
-
-    /**
-     * Fetch the user by user ID and save a reference to it
-     */
-    const providerUser = await this.#userProvider.findById(payload.userId)
-    if (!providerUser) {
-      throw new errors.E_UNAUTHORIZED_ACCESS('Unauthorized access', {
-        guardDriverName: this.driverName,
-      })
-    }
-
-    this.user = providerUser.getOriginal()
-    return this.getUserOrFail()
   }
+  
 
   /**
    * Same as authenticate, but does not throw an exception
@@ -213,4 +225,24 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
       },
     }
   }
+
+    /**
+     * Verify the refresh token
+     */
+    public verifyRefreshToken(refreshToken: string) {
+        try {
+          // Décode le refresh token (avec une clé différente, si nécessaire)
+          const payload = jwt.verify(refreshToken, this.#options.secret)
+          
+          // Vérifie que le payload contient l'ID utilisateur
+          if (typeof payload !== 'object' || !('userId' in payload)) {
+            return null
+          }
+          
+          return payload
+        } catch (err) {
+          return null
+        }
+      }
+      
 }
