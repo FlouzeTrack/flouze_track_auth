@@ -1,10 +1,12 @@
 import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, belongsTo, column } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import Role from './role.js'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import { v4 as uuidv4 } from 'uuid'
+
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -26,6 +28,11 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @belongsTo(() => Role)
   declare role: BelongsTo<typeof Role>
+
+  @beforeCreate()
+  public static assignUuid(model: User) {
+    model.id = uuidv4() // Génère un UUID avant l'insertion
+  }
 
   static accessTokens = DbAccessTokensProvider.forModel(User)
 
