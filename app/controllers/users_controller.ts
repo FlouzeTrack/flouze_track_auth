@@ -7,7 +7,7 @@ import { JwtGuard } from '../auth/guards/jwt.js'
 export default class UsersController {
   public async signup({ request, response, auth }: HttpContext) {
     // Destructure avec une valeur par défaut pour role_id
-    const { email, password, role_id = 1 } = request.all()
+    const { email, password, roleId = 1 } = request.all()
 
     try {
       // Vérifier si l'email est déjà utilisé
@@ -21,7 +21,7 @@ export default class UsersController {
       const user = new User()
       user.email = email
       user.password = password
-      user.role_id = role_id // Sera 1 par défaut si non spécifié
+      user.role_id = roleId // Sera 1 par défaut si non spécifié
 
       await user.save()
 
@@ -87,6 +87,26 @@ export default class UsersController {
       return response.status(200).send(await jwtGuard.generate(user))
     } catch (err) {
       return response.status(401).send({ error: 'Invalid or expired refresh token' })
+    }
+  }
+
+  public async me({ auth, response }: HttpContext) {
+    try {
+      await auth.check()
+
+      const authUser = auth.user as User
+      if (!authUser) {
+        return response.unauthorized({ error: 'User not found' })
+      }
+
+      const user = await User.query().where('id', authUser.id).firstOrFail()
+
+      return response.ok({
+        id: user.id,
+        email: user.email,
+      })
+    } catch (error) {
+      return response.unauthorized({ error: 'Unauthorized' })
     }
   }
 }
