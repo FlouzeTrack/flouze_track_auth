@@ -5,24 +5,57 @@ export default class RolesController {
   /**
    * Display a list of resource
    */
-  async index({}: HttpContext) {
-    const roles = await Role.all()
-    return roles
+  async index({ auth, response }: HttpContext) {
+    try {
+      await auth.check()
+      const user = auth.user
+      if (user && !user.isAdmin()) {
+        return response.status(403).json({
+          message: 'Access denied. Only admins can view roles.',
+        })
+      }
+
+      const roles = await Role.all()
+      return roles
+    } catch (error) {
+      console.log(error)
+      return response.status(404).send('Roles not found')
+    }
   }
 
   /**
    * Display form to create a new record
    */
-  async create({}: HttpContext) {
-    const role = new Role()
-    return role
+  async create({ auth, response }: HttpContext) {
+    try {
+      await auth.check()
+      const user = auth.user
+      if (user && !user.isAdmin()) {
+        return response.status(403).json({
+          message: 'Access denied. Only admins can view roles.',
+        })
+      }
+
+      return response.send('roles.create')
+    } catch (error) {
+      console.log(error)
+      return response.status(404).send('Failed to create a new record')
+    }
   }
 
   /**
    * Handle form submission for the create action
    */
-  async store({ request, response }: HttpContext) {
+  async store({ auth, request, response }: HttpContext) {
     try {
+      await auth.check()
+      const user = auth.user
+      if (user && !user.isAdmin()) {
+        return response.status(403).json({
+          message: 'Access denied. Only admins can view roles.',
+        })
+      }
+
       const validatedData = request.only(['name'])
       if (validatedData.name !== '') {
         const role = Role.create(validatedData)
@@ -42,8 +75,16 @@ export default class RolesController {
   /**
    * Show individual record
    */
-  async show({ params, response }: HttpContext) {
+  async show({ auth, params, response }: HttpContext) {
     try {
+      await auth.check()
+      const user = auth.user
+      if (user && !user.isAdmin()) {
+        return response.status(403).json({
+          message: 'Access denied. Only admins can view roles.',
+        })
+      }
+
       const role = await Role.findOrFail(params.id)
       return role
     } catch (error) {
@@ -55,8 +96,16 @@ export default class RolesController {
   /**
    * Edit individual record
    */
-  async edit({ params, response }: HttpContext) {
+  async edit({ auth, params, response }: HttpContext) {
     try {
+      await auth.check()
+      const user = auth.user
+      if (user && !user.isAdmin()) {
+        return response.status(403).json({
+          message: 'Access denied. Only admins can view roles.',
+        })
+      }
+
       const role = await Role.findOrFail(params.id)
       return params.render('roles.edit', { role })
     } catch (error) {
@@ -68,8 +117,16 @@ export default class RolesController {
   /**
    * Handle form submission for the edit action
    */
-  async update({ params, request, response }: HttpContext) {
+  async update({ auth, params, request, response }: HttpContext) {
     try {
+      await auth.check()
+      const user = auth.user
+      if (user && !user.isAdmin()) {
+        return response.status(403).json({
+          message: 'Access denied. Only admins can view roles.',
+        })
+      }
+
       const validatedData = request.only(['name'])
       const role = await Role.findOrFail(params.id)
       role.merge(validatedData)
@@ -84,8 +141,16 @@ export default class RolesController {
   /**
    * Delete record
    */
-  async destroy({ params, response }: HttpContext) {
+  async destroy({ auth, params, response }: HttpContext) {
     try {
+      await auth.check()
+      const user = auth.user
+      if (user && !user.isAdmin()) {
+        return response.status(403).json({
+          message: 'Access denied. Only admins can view roles.',
+        })
+      }
+
       const role = await Role.findOrFail(params.id)
       await role.delete()
       return response.status(200).json({
