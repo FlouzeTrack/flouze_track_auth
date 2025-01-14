@@ -28,4 +28,8 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare role: BelongsTo<typeof Role>
 
   static accessTokens = DbAccessTokensProvider.forModel(User)
+
+  public isAdmin(): boolean {
+    return this.role_id === 1
+  }
 }
