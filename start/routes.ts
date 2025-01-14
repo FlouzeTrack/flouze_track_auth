@@ -6,9 +6,9 @@
 | The routes file is used for defining the HTTP routes.
 |
 */
-
 import router from '@adonisjs/core/services/router'
 const RolesController = () => import('#controllers/roles_controller')
+const UsersController = () => import('#controllers/users_controller')
 
 router.get('/', async () => {
   return {
@@ -20,7 +20,18 @@ router
   .group(() => {
     router
       .group(() => {
-        router.get('roles', [RolesController, 'index'])
+        router.resource('roles', RolesController)
+        router
+          .group(() => {
+            router.post('signin', [UsersController, 'signin'])
+            router.post('signup', [UsersController, 'signup'])
+            router.post('forgotten', [UsersController, 'forgotten'])
+            router.post('resend', [UsersController, 'resend'])
+            router.post('activate', [UsersController, 'activate'])
+            router.put('crediential', [UsersController, 'credential'])
+            router.get('me', [UsersController, 'me'])
+          })
+          .prefix('auth')
       })
       .prefix('v1')
   })
