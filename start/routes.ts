@@ -28,7 +28,10 @@ router
             router.post('forgotten', [UsersController, 'forgotten'])
             router.post('resend', [UsersController, 'resend'])
             router.post('activate', [UsersController, 'activate'])
-            router.put('crediential', [UsersController, 'credential'])
+            
+            // Correct route for updating credentials with a PUT method
+            router.put('users/:id/credential', [UsersController, 'credential'])
+            
             router.get('me', [UsersController, 'me'])
           })
           .prefix('auth')
