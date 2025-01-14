@@ -1,7 +1,6 @@
 import User from '#models/user'
 import { test } from '@japa/runner'
 import hash from '@adonisjs/core/services/hash'
-import Role from '#models/role'
 
 test.group('creating user', (group) => {
   group.each.setup(async () => {
