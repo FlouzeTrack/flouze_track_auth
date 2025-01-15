@@ -1,8 +1,10 @@
 import { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
-import Role from '#models/role'
+import mail from '@adonisjs/mail/services/main'
+
 import hash from '@adonisjs/core/services/hash'
 import { JwtGuard } from '../auth/guards/jwt.js'
+import env from '#start/env'
 
 export default class UsersController {
   public async signup({ request, response, auth }: HttpContext) {
@@ -107,6 +109,48 @@ export default class UsersController {
       })
     } catch (error) {
       return response.unauthorized({ error: 'Unauthorized' })
+    }
+  }
+
+  public async forgotten({ request, response }: HttpContext) {
+    try {
+      await mail.send((message) => {
+        message
+          .to('test@gmail.com')
+          .from(env.get('SMTP_USERNAME'))
+          .subject('Password Reset')
+          .htmlView('emails/reset_password_html')
+      })
+      console.log('Password reset email sent')
+
+      return response.status(200).send({ message: 'Password reset email sent' })
+    } catch (error) {
+      console.log('error', error)
+      return response.status(400).json({
+        error: 'Unable to send email',
+        errorMsg: error,
+      })
+    }
+  }
+
+  public async activate({ request, response }: HttpContext) {
+    try {
+      await mail.send((message) => {
+        message
+          .to('test@gmail.com')
+          .from(env.get('SMTP_USERNAME'))
+          .subject('Email Validation')
+          .htmlView('emails/verify_email_html')
+      })
+      console.log('Email validation sent')
+
+      return response.status(200).send({ message: 'Email validation sent' })
+    } catch (error) {
+      console.log('error', error)
+      return response.status(400).json({
+        error: 'Unable to send email',
+        errorMsg: error,
+      })
     }
   }
 }
