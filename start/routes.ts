@@ -7,6 +7,7 @@
 |
 */
 import router from '@adonisjs/core/services/router'
+import { throttle } from './limiter.js'
 const RolesController = () => import('#controllers/roles_controller')
 const UsersController = () => import('#controllers/users_controller')
 
@@ -27,7 +28,7 @@ router
             router.post('signup', [UsersController, 'signup'])
             router.post('refreshToken', [UsersController, 'refreshToken'])
             router.get('me', [UsersController, 'me'])
-/*             router.post('forgotten', [UsersController, 'forgotten'])
+            /*             router.post('forgotten', [UsersController, 'forgotten'])
             router.post('resend', [UsersController, 'resend'])
             router.post('activate', [UsersController, 'activate'])
             
@@ -40,4 +41,5 @@ router
       })
       .prefix('v1')
   })
+  .use(throttle)
   .prefix('api')
