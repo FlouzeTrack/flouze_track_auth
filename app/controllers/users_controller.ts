@@ -3,56 +3,83 @@ import User from '#models/user'
 import RefreshToken from '#models/refresh_token'
 import hash from '@adonisjs/core/services/hash'
 import { JwtGuard } from '../auth/guards/jwt.js'
+import { createUserSchema, messages} from '#validators/create_user'
+
 
 export default class UsersController {
   public async signup({ request, response, auth }: HttpContext) {
-    // Destructure avec une valeur par défaut pour role_id
-    const { email, password, roleId = 1 } = request.all()
-
     try {
+      const data = request.all()  // Récupérer toutes les données de la requête
+  
+      // Validation des données
+      const payload = await createUserSchema.validate(data)
+  
+      // Déstructuration des données validées
+      const { email, password } = payload
+      const roleId = 1  // Role par défaut
+  
       // Vérifier si l'email est déjà utilisé
       const existingUser = await User.query().where('email', email).first()
-
+  
       if (existingUser) {
         return response.status(400).send({ error: 'Email already in use' })
       }
-
+  
       // Créer le nouvel utilisateur avec le rôle par défaut
       const user = new User()
       user.email = email
       user.password = password
-      user.role_id = roleId // Sera 1 par défaut si non spécifié
-
+      user.role_id = roleId
+  
       await user.save()
-
+  
       // Générer l'accessToken
       const jwtGuard = auth.use('jwt') as JwtGuard<any>
       const { token } = await jwtGuard.generate(user)
-
+  
       // Générer le refreshToken
       const { refreshToken } = await jwtGuard.generateRefreshToken(user)
-
+  
       const hashedRefreshToken = await hash.make(refreshToken)
-      
-
+  
       await RefreshToken.create({
-        userId: user.id,  // user.id devrait être une chaîne (string), assure-toi qu'il est du bon type
+        userId: user.id,
         token: hashedRefreshToken,
       })
-      
-
+  
       // Retourner les tokens générés
       return response.status(201).send({
         accessToken: token,
         refreshToken, // Le refreshToken peut être retourné en clair
       })
     } catch (error) {
+      if (error.messages) {
+        // Si l'erreur contient un tableau `messages`, c'est une erreur de validation
+        const errors = error.messages.map((err: any) => {
+          const field = err.field
+          const messageKey = `${field}.${err.rule}`
+  
+          // Utiliser le message personnalisé ou un message générique
+          return {
+            field,
+            message: messages[messageKey] || err.message || 'Erreur inconnue', // Si aucun message personnalisé, utiliser le message par défaut
+          }
+        })
+  
+        return response.status(400).json({
+          error: 'Validation meow meow',
+          errors, // Renvoyer les erreurs détaillées
+        })
+      }
+  
+      // Autres erreurs (par exemple, erreurs internes ou autres exceptions)
       return response.status(400).json({
         error: error.message || 'Unable to create user',
       })
     }
-    
   }
+  
+  
 
   // Connexion de l'utilisateur
   public async signin({ request, response, auth }: HttpContext) {
