@@ -5,9 +5,10 @@ export default class extends BaseSchema {
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
-      table.increments('id')
-      table.string('token').notNullable()
-      table.timestamp('expires_at').nullable()
+      table.increments('id') // Identifiant unique
+      table.string('user_id').references('id').inTable('users').onDelete('CASCADE') // Relation avec l'utilisateur
+      table.string('token', 255).notNullable() // Le token haché
+      table.timestamps(true, true) // created_at et updated_at
     })
   }
 
