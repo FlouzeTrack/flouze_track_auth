@@ -5,6 +5,11 @@ import {
 import { AuthClientResponse, GuardContract } from '@adonisjs/auth/types'
 import jwt from 'jsonwebtoken'
 import type { HttpContext } from '@adonisjs/core/http'
+import hash from '@adonisjs/core/services/hash'
+import RefreshToken from '#models/refresh_token'
+import User from '#models/user'
+
+
 
 
 export type JwtGuardOptions = {
@@ -105,7 +110,7 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
     const token = jwt.sign(
       { userId: providerUser.getId() },
       this.#options.secret,
-      { expiresIn: "5min" } // Ajoutez l'option expiresIn
+      { expiresIn: "5s" } // Ajoutez l'option expiresIn
     )
   
     return {
@@ -226,23 +231,87 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
     }
   }
 
+
+
     /**
-     * Verify the refresh token
+     * Verify and refresh the refresh token.
+     * 
+     * @param refreshToken
+     * @param userId
+     * @returns A new refreshToken if the old one is valid.
      */
-    public verifyRefreshToken(refreshToken: string) {
-        try {
-          // Décode le refresh token (avec une clé différente, si nécessaire)
-          const payload = jwt.verify(refreshToken, this.#options.secret)
-          
-          // Vérifie que le payload contient l'ID utilisateur
-          if (typeof payload !== 'object' || !('userId' in payload)) {
-            return null
-          }
-          
-          return payload
-        } catch (err) {
-          return null
+    public async verifyRefreshToken(refreshToken: string, user: User) {
+      try {
+        // Rechercher le refreshToken dans la base de données pour l'utilisateur
+        const storedRefreshToken = await RefreshToken.query()
+          .where('user_id', user.id)
+          .first()
+    
+    
+        if (!storedRefreshToken) {
+          return { error: 'No refresh token found for this user.' }
         }
+    
+        // Comparer le refreshToken envoyé avec celui stocké dans la BDD
+        const isValid = await hash.verify(storedRefreshToken.token, refreshToken)
+    
+        if (!isValid) {
+          return { error: 'Invalid refresh token.' }
+        }
+    
+        // Supprimer l'ancien refreshToken de la base de données
+        await storedRefreshToken.delete()
+
+        // Générer un nouveau Token
+        const { token } = await this.generate(user)
+    
+        // Générer un nouveau refreshToken
+        const { refreshToken: newRefreshToken, hashedRefreshToken } =
+          await this.generateRefreshToken(user)
+    
+    
+        // Enregistrer le nouveau refreshToken dans la base de données
+        await RefreshToken.create({
+          userId: user.id,
+          token: hashedRefreshToken,
+        })
+    
+        // Retourner le nouveau refreshToken
+        return {
+          accessToken: token,
+          newRefreshToken, 
+        }
+      } catch (error) {
+        return { error: 'Unable to verify refresh token.' }
       }
+    }
+    
+
+
+
+    /**
+     * Generate a refresh token for a given user.
+     * The token is hashed before saving it in the database.
+     */
+    public async generateRefreshToken(
+      user: UserProvider[typeof symbols.PROVIDER_REAL_USER]
+    ) {
+      const providerUser = await this.#userProvider.createUserForGuard(user);
+
+      // Génération du refresh token
+      const refreshToken = jwt.sign(
+        { userId: providerUser.getId() },
+        this.#options.secret,
+        { expiresIn: "7d" } // Par exemple, une durée de validité de 7 jours
+      );
+
+      // Hachage du token avant de le sauvegarder
+      const hashedRefreshToken = await hash.make(refreshToken);
+
+      return {
+        refreshToken,
+        hashedRefreshToken, // À enregistrer dans la base de données
+      };
+    }
       
 }
