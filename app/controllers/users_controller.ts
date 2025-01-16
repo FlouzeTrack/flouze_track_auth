@@ -9,34 +9,42 @@ import env from '#start/env'
 import { DateTime } from 'luxon'
 
 export default class UsersController {
-  public async signup({ request, response }: HttpContext) {
+  public async signup({ request, response, auth }: HttpContext) {
     try {
       const data = request.all() // Récupérer toutes les données de la requête
-
+  
       // Validation des données
       const payload = await createUserSchema.validate(data)
-
+  
       // Déstructuration des données validées
       const { email, password } = payload
       const roleId = 1 // Role par défaut
-
+  
       // Vérifier si l'email est déjà utilisé
       const existingUser = await User.query().where('email', email).first()
-
+  
       if (existingUser) {
         return response.status(400).send({ error: 'Email already in use' })
       }
-
+  
       // Créer le nouvel utilisateur avec le rôle par défaut
       const user = new User()
       user.email = email
       user.password = password
       user.role_id = roleId
-
+  
       await user.save()
-
+  
+      // Générer un JWT pour l'activation du compte
+      const jwtGuard = auth.use('jwt') as JwtGuard<any>
+      const { token } = await jwtGuard.generateTemporaryJwt(user)
+  
+      // Appeler la fonction activate pour envoyer l'e-mail d'activation
+      await this.activate(token, user)  // Passer directement le token
+  
       return response.status(201).send({
         success: true,
+        message: 'User created and activation email sent.',
       })
     } catch (error) {
       return response.status(400).json({
@@ -49,14 +57,32 @@ export default class UsersController {
   public async signin({ request, response, auth }: HttpContext) {
     try {
       const { email, password } = request.all()
-
+  
       // Vérifier si l'utilisateur existe
       const user = await User.query().where('email', email).first()
-
+  
       if (!user) {
         return response.status(401).send({ error: 'Invalid credentials' })
       }
-
+  
+      // Vérifier si le compte est activé
+      if (!user.activate) {
+        // Renvoyer automatiquement un e-mail d'activation
+        try {
+          const jwtGuard = auth.use('jwt') as JwtGuard<any>
+          const { token } = await jwtGuard.generateTemporaryJwt(user)
+          await this.activate(token, user)
+        } catch (error) {
+          return response.status(500).send({
+            error: 'Unable to send activation email. Please try again later.',
+          })
+        }
+  
+        return response.status(403).send({
+          error: 'Account not activated. A new activation email has been sent.',
+        })
+      }
+  
       // Vérifier si le compte est verrouillé
       if (
         user.locked_until &&
@@ -66,43 +92,43 @@ export default class UsersController {
           .status(403)
           .send({ error: 'Account is temporarily locked. Please try again later.' })
       }
-
+  
       // Vérifier si le mot de passe est valide
       const isValid = await hash.verify(user.password, password)
-
+  
       if (!isValid) {
         // Incrémenter les tentatives échouées
         user.failed_attempts += 1
-
+  
         // Si le nombre de tentatives échouées dépasse le seuil, verrouiller le compte
         if (user.failed_attempts >= 5) {
           user.locked_until = DateTime.local().plus({ minutes: 15 }) // verrouille pendant 15 minutes
         }
-
+  
         await user.save()
-
+  
         return response.status(401).send({ error: 'Invalid credentials' })
       }
-
+  
       // Réinitialiser les tentatives échouées en cas de succès
       user.failed_attempts = 0
       user.locked_until = null
       await user.save()
-
+  
       // Générer l'accessToken
       const jwtGuard = auth.use('jwt') as JwtGuard<any>
       const { token } = await jwtGuard.generate(user)
-
+  
       // Générer le refreshToken
       const { refreshToken } = await jwtGuard.generateRefreshToken(user)
-
+  
       const hashedRefreshToken = await hash.make(refreshToken)
-
+  
       await RefreshToken.create({
         userId: user.id,
         token: hashedRefreshToken,
       })
-
+  
       // Retourner les tokens générés
       return response.status(201).send({
         accessToken: token,
@@ -259,23 +285,57 @@ export default class UsersController {
     }
   }
 
-  public async activate({ response }: HttpContext) {
+  public async activate(token: string, user: User) {
     try {
+      // Générer un lien d'activation
+      const activateUrl = `http://localhost:5173/verify-email/${token}`
+
+      console.log("activateToken : ", token)
+
+      // Envoyer l'e-mail avec le lien d'activation
       await mail.send((message) => {
         message
-          .to('test@gmail.com')
+          .to(user.email)
           .from(env.get('SMTP_USERNAME'))
-          .subject('Email Validation')
-          .htmlView('emails/verify_email_html')
+          .subject('Activate Your Account')
+          .htmlView('emails/verify_email_html', { activateUrl })
       })
-      console.log('Email validation sent')
-
-      return response.status(200).send({ message: 'Email validation sent' })
     } catch (error) {
-      console.log('error', error)
+      throw new Error('Unable to send activation email: ' + error.message)
+    }
+  }
+
+  /**
+   * Active le compte de l'utilisateur à partir du JWT
+   */
+  public async activateAccount({ request, response, auth }: HttpContext) {
+    try {
+      // Extraire le Bearer token des en-têtes de la requête
+      const token = request.header('Authorization')?.replace('Bearer ', '')
+
+      if (!token) {
+        return response.status(400).send({ error: 'Token is required' })
+      }
+
+      // Utiliser le JWT pour authentifier l'utilisateur
+      const jwtGuard = auth.use('jwt') as JwtGuard<any>
+      
+      // Authenticating the JWT token and retrieving the user
+      const user = await jwtGuard.authenticate()  // This uses the token automatically from the header
+
+      if (!user) {
+        return response.status(404).send({ error: 'User not found or invalid token' })
+      }
+
+      // Activer le compte de l'utilisateur
+      user.activate = true
+      await user.save()
+
+      return response.status(200).send({ success: true, message: 'Account activated successfully' })
+    } catch (error) {
+      console.error('Error activating account:', error)
       return response.status(400).json({
-        error: 'Unable to send email',
-        errorMsg: error,
+        error: error.message || 'Unable to activate account',
       })
     }
   }
