@@ -10,6 +10,12 @@ export default class UserSeeder extends BaseSeeder {
         email: 'flouze.track.hetic@gmail.com',
         password: 'Password1234?',
         activate: true,
+        role_id: 2,
+      },
+      {
+        email: 'freffileubraza-6360@yopmail.com',
+        password: 'Password1234?',
+        activate: true,
         role_id: 1,
       },
     ])
