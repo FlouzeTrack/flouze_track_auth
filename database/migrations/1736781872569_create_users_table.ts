@@ -9,9 +9,9 @@ export default class extends BaseSchema {
       table.string('email', 254).notNullable().unique()
       table.string('password').notNullable()
       table.integer('role_id').notNullable().unsigned().references('id').inTable('roles')
-      table.integer('failed_attempts').defaultTo(0) 
-      table.timestamp('locked_until').nullable() 
-      table.boolean('activate').defaultTo(false) 
+      table.integer('failed_attempts').defaultTo(0)
+      table.timestamp('locked_until').nullable()
+      table.boolean('activate').defaultTo(false)
     })
   }
 
