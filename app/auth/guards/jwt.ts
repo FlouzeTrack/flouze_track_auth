@@ -1,16 +1,9 @@
-import {
-    symbols,
-    errors
-  } from '@adonisjs/auth'
+import { symbols, errors } from '@adonisjs/auth'
 import { AuthClientResponse, GuardContract } from '@adonisjs/auth/types'
 import jwt from 'jsonwebtoken'
 import type { HttpContext } from '@adonisjs/core/http'
 import hash from '@adonisjs/core/services/hash'
 import RefreshToken from '#models/refresh_token'
-import User from '#models/user'
-
-
-
 
 export type JwtGuardOptions = {
   secret: string
@@ -55,19 +48,14 @@ export interface JwtUserProviderContract<RealUser> {
   findById(identifier: string | number | BigInt): Promise<JwtGuardUser<RealUser> | null>
 }
 
-
 export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
   implements GuardContract<UserProvider[typeof symbols.PROVIDER_REAL_USER]>
 {
-    #ctx: HttpContext
-    #userProvider: UserProvider
-    #options: JwtGuardOptions
+  #ctx: HttpContext
+  #userProvider: UserProvider
+  #options: JwtGuardOptions
 
-  constructor(
-    ctx: HttpContext,
-    userProvider: UserProvider,
-    options: JwtGuardOptions
-  ) {
+  constructor(ctx: HttpContext, userProvider: UserProvider, options: JwtGuardOptions) {
     this.#ctx = ctx
     this.#userProvider = userProvider
     this.#options = options
@@ -103,22 +91,19 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
   /**
    * Generate a JWT token for a given user.
    */
-  async generate(
-    user: UserProvider[typeof symbols.PROVIDER_REAL_USER]
-  ) {
+  async generate(user: UserProvider[typeof symbols.PROVIDER_REAL_USER]) {
     const providerUser = await this.#userProvider.createUserForGuard(user)
     const token = jwt.sign(
       { userId: providerUser.getId() },
       this.#options.secret,
-      { expiresIn: "30s" } // Ajoutez l'option expiresIn
+      { expiresIn: '30s' } // Ajoutez l'option expiresIn
     )
-  
+
     return {
       type: 'bearer',
-      token: token
+      token: token,
     }
   }
-  
 
   /**
    * Authenticate the current HTTP request and return
@@ -134,7 +119,9 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
       return this.getUserOrFail()
     }
     this.authenticationAttempted = true
-  
+
+    console.log('Header', this.#ctx.request.header('authorization'))
+
     /**
      * Ensure the auth header exists
      */
@@ -144,7 +131,8 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
         guardDriverName: this.driverName,
       })
     }
-  
+
+    console.log('authHeader', authHeader)
     /**
      * Split the header value and read the token from it
      */
@@ -154,7 +142,8 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
         guardDriverName: this.driverName,
       })
     }
-  
+
+    console.log('token', token)
     /**
      * Verify token
      */
@@ -165,7 +154,8 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
           guardDriverName: this.driverName,
         })
       }
-  
+      console.log('payload', payload)
+
       /**
        * Fetch the user by user ID and save a reference to it
        */
@@ -175,7 +165,9 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
           guardDriverName: this.driverName,
         })
       }
-  
+
+      console.log('providerUser', providerUser)
+
       this.user = providerUser.getOriginal()
       return this.getUserOrFail()
     } catch (err) {
@@ -189,7 +181,6 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
       })
     }
   }
-  
 
   /**
    * Same as authenticate, but does not throw an exception
@@ -216,6 +207,24 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
     return this.user
   }
 
+  async getToken(): Promise<string> {
+    try {
+      const authHeader = this.#ctx.request.header('authorization')
+      if (!authHeader) {
+        throw new Error('No authorization header found.')
+      }
+
+      const [, token] = authHeader.split('Bearer ')
+      if (!token) {
+        throw new Error('No token found.')
+      }
+
+      return token
+    } catch (error) {
+      throw new Error(error.message || 'No token found.')
+    }
+  }
+
   /**
    * This method is called by Japa during testing when "loginAs"
    * method is used to login the user.
@@ -231,87 +240,87 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
     }
   }
 
+  /**
+   * Verify and refresh the refresh token.
+   *
+   * @param refreshToken
+   * @param userId
+   * @returns A new refreshToken if the old one is valid.
+   */
+  public async verifyRefreshToken() {
+    try {
+      // get user from the guard
+      const user = await this.authenticate()
+      console.log('user', user)
+      const providerUser = await this.#userProvider.createUserForGuard(user)
+      const userId = providerUser.getId() as string
 
+      // get the refreshToken from the request
+      const refreshToken = await this.getToken()
 
-    /**
-     * Verify and refresh the refresh token.
-     * 
-     * @param refreshToken
-     * @param userId
-     * @returns A new refreshToken if the old one is valid.
-     */
-    public async verifyRefreshToken(refreshToken: string, user: User) {
-      try {
-        // Rechercher le refreshToken dans la base de données pour l'utilisateur
-        const storedRefreshToken = await RefreshToken.query()
-          .where('user_id', user.id)
-          .first()
-    
-    
-        if (!storedRefreshToken) {
-          return { error: 'No refresh token found for this user.' }
-        }
-    
+      // Rechercher le refreshToken dans la base de données pour l'utilisateur
+      const storedRefreshTokens = await RefreshToken.query().where('userId', userId)
+
+      if (!storedRefreshTokens.length) {
+        throw new Error('No refresh token found for this user.')
+      }
+
+      console.log('storedRefreshTokens', storedRefreshTokens)
+      for (const storedRefreshToken of storedRefreshTokens) {
         // Comparer le refreshToken envoyé avec celui stocké dans la BDD
         const isValid = await hash.verify(storedRefreshToken.token, refreshToken)
-    
-        if (!isValid) {
-          return { error: 'Invalid refresh token.' }
-        }
-    
-        // Supprimer l'ancien refreshToken de la base de données
-        await storedRefreshToken.delete()
 
-        // Générer un nouveau Token
-        const { token } = await this.generate(user)
-    
-        // Générer un nouveau refreshToken
-        const { refreshToken: newRefreshToken, hashedRefreshToken } =
-          await this.generateRefreshToken(user)
-    
-    
-        // Enregistrer le nouveau refreshToken dans la base de données
-        await RefreshToken.create({
-          userId: user.id,
-          token: hashedRefreshToken,
-        })
-    
-        // Retourner le nouveau refreshToken
-        return {
-          accessToken: token,
-          newRefreshToken, 
+        console.log('isValid', isValid)
+        if (isValid) {
+          // Supprimer l'ancien refreshToken de la base de données
+          await storedRefreshToken.delete()
+
+          // Générer un nouveau Token
+          const { token } = await this.generate(user)
+
+          // Générer un nouveau refreshToken
+          const { refreshToken: newRefreshToken, hashedRefreshToken: newHashedRefreshToken } =
+            await this.generateRefreshToken(user)
+
+          // Enregistrer le nouveau refreshToken dans la base de données
+          await RefreshToken.create({
+            userId: userId,
+            token: newHashedRefreshToken,
+          })
+
+          // Retourner le nouveau refreshToken
+          return {
+            accessToken: token,
+            refreshToken: newRefreshToken,
+          }
         }
-      } catch (error) {
-        return { error: 'Unable to verify refresh token.' }
       }
+      throw new Error('Invalid refresh token.')
+    } catch (error) {
+      throw new Error(error.message || 'Unable to refresh token.')
     }
-    
+  }
 
+  /**
+   * Generate a refresh token for a given user.
+   * The token is hashed before saving it in the database.
+   */
+  public async generateRefreshToken(user: UserProvider[typeof symbols.PROVIDER_REAL_USER]) {
+    const providerUser = await this.#userProvider.createUserForGuard(user)
 
+    // Génération du refresh token
+    const refreshToken = jwt.sign(
+      { userId: providerUser.getId() },
+      this.#options.secret,
+      { expiresIn: '7d' } // Par exemple, une durée de validité de 7 jours
+    )
 
-    /**
-     * Generate a refresh token for a given user.
-     * The token is hashed before saving it in the database.
-     */
-    public async generateRefreshToken(
-      user: UserProvider[typeof symbols.PROVIDER_REAL_USER]
-    ) {
-      const providerUser = await this.#userProvider.createUserForGuard(user);
+    // Hachage du token avant de le sauvegarder
+    const hashedRefreshToken = await hash.make(refreshToken)
 
-      // Génération du refresh token
-      const refreshToken = jwt.sign(
-        { userId: providerUser.getId() },
-        this.#options.secret,
-        { expiresIn: "7d" } // Par exemple, une durée de validité de 7 jours
-      );
-
-      // Hachage du token avant de le sauvegarder
-      const hashedRefreshToken = await hash.make(refreshToken);
-
-      return {
-        refreshToken,
-        hashedRefreshToken, // À enregistrer dans la base de données
-      };
+    return {
+      refreshToken,
+      hashedRefreshToken, // À enregistrer dans la base de données
     }
-      
+  }
 }

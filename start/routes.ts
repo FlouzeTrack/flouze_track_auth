@@ -26,7 +26,7 @@ router
           .group(() => {
             router.post('signin', [UsersController, 'signin'])
             router.post('signup', [UsersController, 'signup'])
-            router.post('refreshToken', [UsersController, 'refreshToken'])
+            router.post('refresh', [UsersController, 'refreshToken'])
             router.get('me', [UsersController, 'me'])
             router.get('authenticate', [UsersController, 'authenticate'])
             router.post('forgotten', [UsersController, 'forgotten'])
