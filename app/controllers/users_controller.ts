@@ -312,25 +312,27 @@ export default class UsersController {
     try {
       // Extraire le Bearer token des en-têtes de la requête
       const token = request.header('Authorization')?.replace('Bearer ', '')
-
+      console.log('Received token:', token)  // Ajout du log pour débogage
+  
       if (!token) {
         return response.status(400).send({ error: 'Token is required' })
       }
-
+  
       // Utiliser le JWT pour authentifier l'utilisateur
       const jwtGuard = auth.use('jwt') as JwtGuard<any>
       
       // Authenticating the JWT token and retrieving the user
-      const user = await jwtGuard.authenticate()  // This uses the token automatically from the header
-
+      const user = await jwtGuard.authenticate()  // Cela utilise le token extrait des en-têtes automatiquement
+  
       if (!user) {
-        return response.status(404).send({ error: 'User not found or invalid token' })
+        console.log('Invalid token or user not found')  // Log supplémentaire pour débogage
+        return response.status(401).send({ error: 'Invalid token or user not found' })
       }
-
+  
       // Activer le compte de l'utilisateur
       user.activate = true
       await user.save()
-
+  
       return response.status(200).send({ success: true, message: 'Account activated successfully' })
     } catch (error) {
       console.error('Error activating account:', error)
@@ -339,4 +341,5 @@ export default class UsersController {
       })
     }
   }
+  
 }
