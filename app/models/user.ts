@@ -32,6 +32,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column.dateTime()
   declare locked_until: DateTime | null // Nouveau champ : date de verrouillage
 
+  @column()
+  declare activate: boolean // Nouveau champ : activation du compte
+
   @belongsTo(() => Role)
   declare role: BelongsTo<typeof Role>
 
