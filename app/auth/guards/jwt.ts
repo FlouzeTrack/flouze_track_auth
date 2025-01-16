@@ -96,7 +96,7 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
     const token = jwt.sign(
       { userId: providerUser.getId() },
       this.#options.secret,
-      { expiresIn: '30s' } // Ajoutez l'option expiresIn
+      { expiresIn: '15m' } // Ajoutez l'option expiresIn
     )
 
     return {
