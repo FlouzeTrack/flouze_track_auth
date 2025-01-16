@@ -1,10 +1,12 @@
 services:
-  app:
+  auth-api:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - '4010:4010'
+    networks:
+      - backend
     env_file:
       - .env # Mappage du port AdonisJS
     volumes:
@@ -21,16 +23,18 @@ services:
         node ace serve --watch
       "
     depends_on:
-      db:
+      db-auth:
         condition: service_healthy
 
-  db:
+  db-auth:
     image: mysql:8.0
     restart: always
     env_file:
       - .env
     ports:
       - '3080:3306'
+    networks:
+      - backend
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -40,12 +44,18 @@ services:
       retries: 5
       start_period: 60s
 
-  redis:
+  redis-auth:
     image: redis:6.2
     ports:
       - '6479:6379'
+    networks:
+      - backend
     volumes:
       - redis_data:/data
+
+networks:
+  backend:
+    external: true
 
 volumes:
   mysql_data:
