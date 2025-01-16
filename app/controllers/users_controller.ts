@@ -4,7 +4,7 @@ import mail from '@adonisjs/mail/services/main'
 import RefreshToken from '#models/refresh_token'
 import hash from '@adonisjs/core/services/hash'
 import { JwtGuard } from '../auth/guards/jwt.js'
-import { createUserSchema } from '#validators/create_user'
+import { createUserSchema, resetPasswordSchema } from '#validators/create_user'
 import env from '#start/env'
 import { DateTime } from 'luxon'
 
@@ -165,23 +165,96 @@ export default class UsersController {
     }
   }
 
-  public async forgotten({ response }: HttpContext) {
+  public async forgotten({ request, response, auth }: HttpContext) {
     try {
+      const { email } = request.all()
+  
+      // Log l'email reçu
+      console.log('Email received for password reset:', email)
+  
+      // Vérifier si l'utilisateur existe
+      const user = await User.query().where('email', email).first()
+  
+      // Log l'utilisateur trouvé
+      if (!user) {
+        await this.simulateProcessingDelay()
+        console.log('User not found:', email)
+        return response.status(200).send({ message: 'If the email exists, a reset email has been sent.' })
+      } else {
+        console.log('User found:', user.id)
+      }
+  
+      // Générer le JWT temporaire
+      const jwtGuard = auth.use('jwt') as JwtGuard<any>
+      console.log('Generating temporary JWT for user ID:', user.id)
+  
+      const { token } = await jwtGuard.generateTemporaryJwt(user)
+      console.log('Password reset token generated:', token)
+  
+      // Envoyer l'email
+      const resetUrl = `http://localhost:5173/reset-password/${token}`
+      console.log('Sending reset email to:', user.email)
+  
       await mail.send((message) => {
         message
-          .to('test@gmail.com')
+          .to(user.email)
           .from(env.get('SMTP_USERNAME'))
-          .subject('Password Reset')
-          .htmlView('emails/reset_password_html')
+          .subject('Reset Your Password')
+          .htmlView('emails/reset_password_html', { resetUrl })
       })
-      console.log('Password reset email sent')
-
-      return response.status(200).send({ message: 'Password reset email sent' })
+      console.log('Password reset email sent successfully')
+  
+      return response.status(200).send({ message: 'If the email exists, a reset email has been sent.' })
+  
     } catch (error) {
-      console.log('error', error)
+      // Log l'erreur complète avec le stack trace pour plus de détails
+      console.error('Error generating password reset token:', error)
+  
       return response.status(400).json({
-        error: 'Unable to send email',
-        errorMsg: error,
+        error: 'Unable to process your request at this time.',
+        errorMsg: error.message,
+        stack: error.stack,  // Inclure le stack trace pour faciliter le debug
+      })
+    }
+  }
+  
+  
+  /**
+   * Simulate a delay to make the response time consistent
+   * when the email does not exist.
+   */
+  private async simulateProcessingDelay() {
+    return new Promise((resolve) => setTimeout(resolve, 500))
+  }
+
+
+
+
+  public async resetPassword({ request, response, auth }: HttpContext) {
+    try {
+      const { password } = request.all()
+  
+      // Validation du mot de passe
+      const payload = await resetPasswordSchema.validate({ password })
+  
+      // Extraire le nouveau mot de passe validé
+      const { password: newPassword } = payload
+  
+      // Utilisation du JWT pour obtenir l'utilisateur
+      const jwtGuard = auth.use('jwt') as JwtGuard<any>
+      const user = await jwtGuard.authenticate()
+  
+      if (!user) {
+        return response.status(404).send({ error: 'User not found' })
+      }
+      // Mise à jour du mot de passe de l'utilisateur
+      user.password = newPassword
+      await user.save()
+  
+      return response.status(200).send({ success: true, message: 'Password updated successfully' })
+    } catch (error) {
+      return response.unauthorized({
+        error: error.message || 'Unauthorized',
       })
     }
   }

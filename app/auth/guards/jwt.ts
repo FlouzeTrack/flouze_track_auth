@@ -323,4 +323,24 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
       hashedRefreshToken, // À enregistrer dans la base de données
     }
   }
+
+
+
+  /**
+   * Generate a temporary JWT token valid for 5 minutes.
+   */
+  public async generateTemporaryJwt(user: UserProvider[typeof symbols.PROVIDER_REAL_USER]) {
+    const providerUser = await this.#userProvider.createUserForGuard(user)
+    
+    const token = jwt.sign(
+      { userId: providerUser.getId() },
+      this.#options.secret,
+      { expiresIn: '5m' } // Durée de validité de 5 minutes
+    )
+
+    return {
+      type: 'bearer',
+      token: token,
+    }
+  }
 }

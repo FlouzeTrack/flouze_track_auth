@@ -18,6 +18,9 @@ const mailConfig = defineConfig({
         user: env.get('SMTP_USERNAME'),
         pass: env.get('SMTP_PASSWORD'),
       },
+      tls: {
+        rejectUnauthorized: false, // Désactiver la validation du certificat SSL
+      },
     }),
   },
 })

@@ -30,6 +30,7 @@ router
             router.get('me', [UsersController, 'me'])
             router.get('authenticate', [UsersController, 'authenticate'])
             router.post('forgotten', [UsersController, 'forgotten'])
+            router.post('resetPassword', [UsersController, 'resetPassword'])
             router.post('activate', [UsersController, 'activate'])
             /* router.post('resend', [UsersController, 'resend'])
             
