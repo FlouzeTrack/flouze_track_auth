@@ -54,7 +54,7 @@ export default class UsersController {
       const user = await User.query().where('email', email).first()
 
       if (!user) {
-        return response.status(404).send({ error: 'User not found' })
+        return response.status(401).send({ error: 'Invalid credentials' })
       }
 
       // Vérifier si le compte est verrouillé
@@ -135,7 +135,7 @@ export default class UsersController {
 
       const authUser = auth.user as User
       if (!authUser) {
-        return response.unauthorized({ error: 'User not found' })
+        return response.unauthorized({ error: 'Unauthorized' })
       }
 
       const user = await User.query().where('id', authUser.id).firstOrFail()
