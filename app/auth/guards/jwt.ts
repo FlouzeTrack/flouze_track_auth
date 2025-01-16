@@ -324,14 +324,12 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
     }
   }
 
-
-
   /**
    * Generate a temporary JWT token valid for 5 minutes.
    */
   public async generateTemporaryJwt(user: UserProvider[typeof symbols.PROVIDER_REAL_USER]) {
     const providerUser = await this.#userProvider.createUserForGuard(user)
-    
+
     const token = jwt.sign(
       { userId: providerUser.getId() },
       this.#options.secret,
