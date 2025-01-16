@@ -29,9 +29,9 @@ router
             router.post('refresh', [UsersController, 'refreshToken'])
             router.get('me', [UsersController, 'me'])
             router.get('authenticate', [UsersController, 'authenticate'])
-            router.post('forgotten', [UsersController, 'forgotten'])
-            router.post('resetPassword', [UsersController, 'resetPassword'])
-            router.post('activateAccount', [UsersController, 'activateAccount'])
+            router.post('forgot-password', [UsersController, 'forgotten'])
+            router.post('reset-password', [UsersController, 'resetPassword'])
+            router.post('verify-email', [UsersController, 'activateAccount'])
             /* router.post('resend', [UsersController, 'resend'])
             
             // Correct route for updating credentials with a PUT method

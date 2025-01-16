@@ -94,9 +94,9 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
   async generate(user: UserProvider[typeof symbols.PROVIDER_REAL_USER]) {
     const providerUser = await this.#userProvider.createUserForGuard(user)
     const token = jwt.sign(
-      { userId: providerUser.getId(), userEmail: (providerUser.getOriginal() as any).email },
+      { userId: providerUser.getId() },
       this.#options.secret,
-      { expiresIn: '15m' } // Ajoutez l'option expiresIn
+      { expiresIn: '30s' } // Ajoutez l'option expiresIn
     )
 
     return {
@@ -119,6 +119,9 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
       return this.getUserOrFail()
     }
     this.authenticationAttempted = true
+
+    console.log('Header', this.#ctx.request.header('authorization'))
+
     /**
      * Ensure the auth header exists
      */
@@ -128,6 +131,8 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
         guardDriverName: this.driverName,
       })
     }
+
+    console.log('authHeader', authHeader)
     /**
      * Split the header value and read the token from it
      */
@@ -137,16 +142,19 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
         guardDriverName: this.driverName,
       })
     }
+
+    console.log('token', token)
     /**
      * Verify token
      */
     try {
       const payload = jwt.verify(token, this.#options.secret)
-      if (typeof payload !== 'object' || !('userId' in payload) || !('userEmail' in payload)) {
+      if (typeof payload !== 'object' || !('userId' in payload)) {
         throw new errors.E_UNAUTHORIZED_ACCESS('Unauthorized access', {
           guardDriverName: this.driverName,
         })
       }
+      console.log('payload', payload)
 
       /**
        * Fetch the user by user ID and save a reference to it
@@ -157,6 +165,8 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
           guardDriverName: this.driverName,
         })
       }
+
+      console.log('providerUser', providerUser)
 
       this.user = providerUser.getOriginal()
       return this.getUserOrFail()
@@ -300,7 +310,7 @@ export class JwtGuard<UserProvider extends JwtUserProviderContract<unknown>>
 
     // Génération du refresh token
     const refreshToken = jwt.sign(
-      { userId: providerUser.getId(), userEmail: (providerUser.getOriginal() as any).email },
+      { userId: providerUser.getId() },
       this.#options.secret,
       { expiresIn: '7d' } // Par exemple, une durée de validité de 7 jours
     )
