@@ -16,6 +16,16 @@ export const createUserSchema = vine.compile(
   })
 )
 
+export const resetPasswordSchema = vine.compile(
+  vine.object({
+    password: vine
+      .string()
+      .minLength(8)
+      .maxLength(32)
+      .regex(/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
+  })
+)
+
 export const messages: Messages = {
   'email.email': 'Veuillez fournir une adresse email valide.',
   'password.minLength': 'Le mot de passe doit contenir au moins 8 caractères.',
