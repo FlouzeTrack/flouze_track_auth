@@ -75,6 +75,17 @@ app
 ├── Commands
 ```
 
+- The following drawings represent the flow of the application:
+
+  - Password Resetting  
+    ![alt text](./docs/password_reset.png)
+
+  - Verification Email during registration
+    ![alt text](./docs/verification_email_register.png)
+
+  - Verification Email during signin
+    ![alt text](./docs/verification_email_signin.png)
+
 # Testing
 
 - The tests are located in the test folder. They are written using the adonisjs testing framework.
