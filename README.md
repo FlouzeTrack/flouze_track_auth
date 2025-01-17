@@ -45,6 +45,12 @@ SMTP_USERNAME=
 SMTP_PASSWORD=
 ```
 
+- To allow all the microservices to communicate with each other, you will need to create a network in docker. You may do so by running the following command:
+
+```
+docker network create backend
+```
+
 - Once the environment variables are set, you may run the following command in the root directory of this repository to start the docker containers:
 
 ```
